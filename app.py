@@ -32,7 +32,23 @@ def articles():
 
 @app.route('/articles/<string:id>/')
 def article(id):
-    return render_template('single.html', id=id)
+    #create cursor
+    cur = mysql.get_db().cursor()
+    #get article by id
+    #id = request.args.get('id')
+    print(id)
+    result = cur.execute("SELECT * FROM articles WHERE id = %s", id)
+
+    article = cur.fetchone()
+
+    #get form
+    form = ArticleForm(request.form)
+    print(form)
+    #populate article form fields
+    title = article[1]
+    body = article[3]
+    author = article[2]
+    return render_template('single.html', id=id, title = title, body = body, author = author)
 
 class RegisterForm(Form):
     name = StringField('Name',[validators.Length(min=3, max=50)])
@@ -182,11 +198,10 @@ def add_article():
 @app.route('/edit_article/<string:id>', methods=['GET', 'POST'])
 @is_logged_in
 def edit_article(id):
-    print(id)
     #create cursor
     cur = mysql.get_db().cursor()
     #get article by id
-    id = request.args.get('id')
+    #id = request.args.get('id')
     print(id)
     result = cur.execute("SELECT * FROM articles WHERE id = %s", id)
 
@@ -194,22 +209,23 @@ def edit_article(id):
 
     #get form
     form = ArticleForm(request.form)
-
+    print(form)
     #populate article form fields
-    form.title.data = article['title']
-    form.body.data = article['body']
+    form.title.data = article[1]
+    form.body.data = article[3]
 
     #form = ArticleForm(request.form)
     if request.method == 'POST' and form.validate():
-        title = request.form["title"]
-        body = request.form["body"]
+        title = form.title.data
+        body = form.body.data
         author = session['username']
 
         #create cursor
         cur = mysql.get_db().cursor()
         #execute query
 
-        cur.execute("UPDATE articles SET name= %s, body=%s WHERE id = %s", (author, body, id))        
+        print(id)
+        cur.execute("UPDATE articles SET author= %s, body=%s WHERE id = %s", (author, body, id))        
 
         #commit to db
         mysql.get_db().commit()
@@ -220,6 +236,22 @@ def edit_article(id):
 
         return redirect(url_for('dashboard'))
     return render_template('edit_article.html', form = form)
+
+#delete Article
+@app.route('/delete_article/<string:id>', methods=['GET', 'POST', 'DELETE'])
+@is_logged_in
+def delete_article(id):
+    #create cursor
+    cur = mysql.get_db().cursor()
+    #get article by id
+    cur.execute("DELETE FROM articles WHERE id = %s", id)
+
+    #commit to db
+    mysql.get_db().commit()
+
+    #close db
+    cur.close()
+    return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
     app.secret_key='thaothui'
